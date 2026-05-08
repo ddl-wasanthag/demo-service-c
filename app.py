@@ -19,6 +19,20 @@ SERVICE_TOKEN = os.environ["SERVICE_TOKEN"]
 SERVICE_B_URL = os.environ["SERVICE_B_URL"]   # vanity URL of Service B (return leg)
 VERIFY_SSL    = os.environ.get("VERIFY_SSL", "true").lower() != "false"
 
+_IDENTITY_TOKEN_URL = "http://localhost:8899/access-token"
+
+
+def get_proxy_headers() -> dict:
+    try:
+        r = requests.get(_IDENTITY_TOKEN_URL, timeout=5)
+        r.raise_for_status()
+        token = r.text.strip()
+        if token:
+            return {"Authorization": f"Bearer {token}"}
+    except Exception:
+        pass
+    return {"X-Domino-Api-Key": SERVICE_TOKEN}
+
 
 def verify_token(x_service_token: Annotated[Optional[str], Header()] = None):
     if x_service_token != SERVICE_TOKEN:
@@ -27,7 +41,7 @@ def verify_token(x_service_token: Annotated[Optional[str], Header()] = None):
 
 def call_service(url: str, path: str) -> dict:
     headers = {
-        "X-Domino-Api-Key": SERVICE_TOKEN,
+        **get_proxy_headers(),
         "X-Service-Token": SERVICE_TOKEN,
     }
     response = requests.get(f"{url}{path}", headers=headers, timeout=10, verify=VERIFY_SSL)
